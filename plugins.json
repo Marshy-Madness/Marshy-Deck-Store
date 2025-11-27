@@ -1,0 +1,13 @@
+{
+  "plugins": [
+    {
+      "name": "Zipline Uploader",
+      "author": "MarshyMadness",
+      "slug": "ziplien-uploader",
+      "version": "auto",
+      "tags": ["utility"],
+      "description": "Uploads Screenshots to Zipline instance",
+      "zipUrl": "https://raw.githubusercontent.com/MarshyMadness/decky-plugins/main/plugins/zipline-uploader/plugin.zip"
+    }
+  ]
+}
