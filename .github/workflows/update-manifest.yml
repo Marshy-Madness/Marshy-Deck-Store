@@ -1,0 +1,32 @@
+name: Update Plugin Version in Store
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "plugin.json"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          ver=$(jq -r '.version' plugin.json)
+          echo "version=$ver" >> $GITHUB_OUTPUT
+
+      - name: Update plugins.json
+        run: |
+          jq ".plugins[0].version = \"${{ steps.version.outputs.version }}\"" plugins.json > plugins.tmp
+          mv plugins.tmp plugins.json
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update version → ${{ steps.version.outputs.version }}"
+          file_pattern: "plugins.json"
