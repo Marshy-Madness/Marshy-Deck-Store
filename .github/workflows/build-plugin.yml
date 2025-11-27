@@ -1,0 +1,63 @@
+name: Build and Package Decky Plugin
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "src/**"
+      - "backend/**"
+      - "py_modules/**"
+      - "plugin.json"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read plugin slug
+        id: slug
+        run: |
+          slug=$(jq -r '.slug // empty' plugin.json)
+          if [ -z "$slug" ]; then
+            name=$(jq -r '.name' plugin.json)
+            slug=$(echo "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+          fi
+          echo "slug=$slug" >> $GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build frontend
+        run: pnpm run build
+
+      - name: Build backend (Docker)
+        run: |
+          cd backend
+          docker build -t decky-backend .
+          mkdir -p ../build/backend
+          docker create --name backend_temp decky-backend
+          docker cp backend_temp:/backend ../build/backend
+          docker rm backend_temp
+
+      - name: Create plugin.zip
+        run: |
+          mkdir -p plugins/${{ steps.slug.outputs.slug }}
+          cd build
+          zip -r ../plugins/${{ steps.slug.outputs.slug }}/plugin.zip .
+
+      - name: Commit & Push ZIP
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-build: Updated ${{ steps.slug.outputs.slug }} plugin.zip"
+          file_pattern: "plugins/${{ steps.slug.outputs.slug }}/plugin.zip"
