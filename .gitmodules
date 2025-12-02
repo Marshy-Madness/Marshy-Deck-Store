@@ -1,0 +1,3 @@
+[submodule "plugins/zipline-auto-uploader"]
+	path = plugins/zipline-auto-uploader
+	url = https://github.com/Marshy-Madness/zipline-auto-uploader
