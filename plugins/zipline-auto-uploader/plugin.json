@@ -1,0 +1,16 @@
+{
+  "name": "zipline-uploader",
+  "display_name": "Zipline Uploader",
+  "author": "MarshyMadness",
+  "version": "1.0.0",
+  "description": "Automatically uploads screenshots and videos to Zipline.",
+  "target": "main.py",
+  "frontend": "dist/index.js",
+  "api_version": 1,
+  "flags": ["debug"],
+  "publish": {
+    "tags": ["utility", "upload", "zipline", "screenshots"],
+    "description": "Monitors the Steam Deck screenshot folder and uploads new images/videos to Zipline.",
+    "image": "https://zipline.marshymadness.com/u/2025-11-18_21_11.png"
+  }
+}

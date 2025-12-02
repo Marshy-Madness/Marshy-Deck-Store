@@ -1,0 +1,9 @@
+nodejs-bin/
+build/
+out/
+dist/
+__pycache__/
+*.pyc
+backend/__pycache__/
+venv/
+python-virtualenv/

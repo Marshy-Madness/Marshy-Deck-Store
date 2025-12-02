@@ -1,0 +1,27 @@
+{
+  "name": "zipline-uploader",
+  "version": "1.0.0",
+  "type": "module",
+  "backend": "python",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -cw"
+  },
+  "dependencies": {
+    "@decky/api": "1.1.2",
+    "@decky/rollup": "latest",
+    "@decky/ui": "4.11.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-icons": "^5.5.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-typescript": "^11.1.0",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-icons": "^3.0.0",
+    "rollup": "^3.20.0",
+    "typescript": "^5.0.4"
+  }
+}
