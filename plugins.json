@@ -3,7 +3,7 @@
     {
       "name": "Zipline Uploader",
       "author": "MarshyMadness",
-      "slug": "ziplien-uploader",
+      "slug": "zipline-uploader",
       "version": "auto",
       "tags": ["utility"],
       "description": "Uploads Screenshots to Zipline instance",
