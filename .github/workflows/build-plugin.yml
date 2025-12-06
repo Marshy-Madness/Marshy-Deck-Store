@@ -1,63 +1,130 @@
-name: Build and Package Decky Plugin
+name: Build Plugins (Submodules)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
-      - "src/**"
-      - "backend/**"
-      - "py_modules/**"
-      - "plugin.json"
+      - "plugins/**"
+      - ".github/workflows/build-plugins.yml"
+
+  workflow_dispatch:
 
 jobs:
+  find:
+    name: Detect changed plugins
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.out.outputs.matrix }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Determine changed plugin folders
+      id: out
+      run: |
+        ALL=$(ls plugins)
+        CHANGED=$(git diff --name-only HEAD~1 HEAD | grep "^plugins/" | cut -d/ -f2 | uniq)
+
+        # On first build or no changes — rebuild ALL
+        if [ -z "$CHANGED" ]; then
+          CHANGED=$ALL
+        fi
+
+        JSON=$(printf '%s\n' $CHANGED | jq -R . | jq -s .)
+        echo "matrix=$JSON" >> $GITHUB_OUTPUT
+
   build:
+    name: Build plugin
+    needs: find
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.find.outputs.matrix) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - uses: pnpm/action-setup@v3
+      with:
+        version: 9
+
+    - name: Install Decky CLI
+      run: |
+        mkdir /tmp/decky-cli
+        curl -L -o /tmp/decky-cli/decky \
+          "https://github.com/SteamDeckHomebrew/cli/releases/download/0.0.7/decky-linux-x86_64"
+        chmod +x /tmp/decky-cli/decky
+        echo "/tmp/decky-cli" >> $GITHUB_PATH
+
+    - name: Build plugin via Decky CLI
+      run: |
+        mkdir -p output
+        sudo decky plugin build \
+          -s directory \
+          -o /tmp/out \
+          plugins/${{ matrix.plugin }}
+
+        sudo chown -R $USER:$USER /tmp/out
+        mv /tmp/out/*.zip output/${{ matrix.plugin }}.zip
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.plugin }}
+        path: output/${{ matrix.plugin }}.zip
+
+  manifest:
+    name: Update plugins.json
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
-      - name: Read plugin slug
-        id: slug
-        run: |
-          slug=$(jq -r '.slug // empty' plugin.json)
-          if [ -z "$slug" ]; then
-            name=$(jq -r '.name' plugin.json)
-            slug=$(echo "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
-          fi
-          echo "slug=$slug" >> $GITHUB_OUTPUT
+    - name: Generate plugin manifest
+      run: |
+        echo "[" > plugins.json
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+        for plugin in plugins/*; do
+          slug=$(basename $plugin)
+          meta="$plugin/plugin.json"
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+          name=$(jq -r '.name' $meta)
+          author=$(jq -r '.author' $meta)
+          description=$(jq -r '.description' $meta)
+          version=$(jq -r '.version' $meta)
 
-      - name: Install dependencies
-        run: pnpm install
+          zipUrl="https://raw.githubusercontent.com/${{ github.repository }}/main/output/${slug}.zip"
 
-      - name: Build frontend
-        run: pnpm run build
+          cat >> plugins.json <<EOF
+  {
+    "name": "$name",
+    "slug": "$slug",
+    "author": "$author",
+    "description": "$description",
+    "version": "$version",
+    "zipUrl": "$zipUrl"
+  },
+EOF
+        done
 
-      - name: Build backend (Docker)
-        run: |
-          cd backend
-          docker build -t decky-backend .
-          mkdir -p ../build/backend
-          docker create --name backend_temp decky-backend
-          docker cp backend_temp:/backend ../build/backend
-          docker rm backend_temp
+        sed -i '$ s/,$//' plugins.json
+        echo "]" >> plugins.json
 
-      - name: Create plugin.zip
-        run: |
-          mkdir -p plugins/${{ steps.slug.outputs.slug }}
-          cd build
-          zip -r ../plugins/${{ steps.slug.outputs.slug }}/plugin.zip .
-
-      - name: Commit & Push ZIP
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Auto-build: Updated ${{ steps.slug.outputs.slug }} plugin.zip"
-          file_pattern: "plugins/${{ steps.slug.outputs.slug }}/plugin.zip"
+    - name: Commit updated plugins.json
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Update plugin manifest"
+        file_pattern: plugins.json
